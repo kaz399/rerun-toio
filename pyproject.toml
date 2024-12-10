@@ -1,0 +1,18 @@
+[project]
+name = "rerun-toio"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "rerun-sdk>=0.20.3",
+    "toio-py>=1.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.13.0",
+    "pyright>=1.1.390",
+    "ruff>=0.8.2",
+    "uv>=0.5.7",
+]
