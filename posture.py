@@ -1,17 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# ************************************************************
-#
-#     posture.py
-#
-#     Copyright 2024 YABE Kazuhiro
-#
-# ************************************************************
 
 from __future__ import annotations
 
+import asyncio
 import argparse
-import fileinput
 import sys
 from logging import (
     DEBUG,
@@ -29,6 +22,8 @@ from logging import (
 
 import rerun as rr
 
+import toio_interface
+
 logger = getLogger(__name__)
 if __name__ == "__main__":
     default_log_level = DEBUG
@@ -41,40 +36,35 @@ else:
     default_log_level = NOTSET
     handler = NullHandler()
 
+
 class MyLoggerFilter(Filter):
     def filter(self, record):
         if record.name == "xxx":
             return False
         return True
 
+
 handler.addFilter(MyLoggerFilter())
-basicConfig(
-    handlers=[handler],
-    level=default_log_level
-)
+basicConfig(handlers=[handler], level=default_log_level)
 
-def init_rerun(model_filename: str):
-   rr.init("toio posture", spawn=True)
 
-   rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Z_DOWN, static=True)
-   origins = [
-       [0.0, 0.0, 0.0],
-       [0.0, 0.0, 0.0],
-       [0.0, 0.0, 0.0],
-   ]
-   vectors = [
-       [0.1, 0.0, 0.0],
-       [0.0, 0.1, 0.0],
-       [0.0, 0.0, 0.1],
-   ]
-   colors = [
-       [1.0, 0.0, 0.0],
-       [0.0, 1.0, 0.0],
-       [0.0, 0.0, 1.0],
-   ]
-   labels = ["X", "Y", "Z"]
-   rr.log("world/axis", rr.Arrows3D(origins=origins, vectors=vectors, colors=colors, labels=labels))
-   rr.log("world/toio", rr.Asset3D(path=model_filename))
+def init(model_filename: str):
+    logger.info("load: %s", model_filename)
+    rr.init("toio_posture_viewer", spawn=True)
+
+    rr.reset_time()
+    rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Z_DOWN, static=True)
+    rr.log("mat", rr.EncodedImage(path="./assets/toio_playmat.png"), static=True)
+
+    colors = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    vectors = [[0.1, 0.0, 0.0], [0.0, 0.1, 0.0], [0.0, 0.0, 0.1]]
+    origins = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    labels = ["X", "Y", "Z"]
+    rr.log(
+        "world/axis",
+        rr.Arrows3D(origins=origins, vectors=vectors, colors=colors, labels=labels),
+    )
+    rr.log("world/toio", rr.Asset3D(path=model_filename))
 
 
 def options(argv):
@@ -96,11 +86,12 @@ def options(argv):
     return opt
 
 
-def main(argv):
+async def main(argv):
     opt = options(argv)
 
     if len(opt.argv):
-        init_rerun(opt.argv[0])
+        init(opt.argv[0])
+        await toio_interface.toio_quaternion()
     else:
         pass
 
@@ -108,5 +99,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
-
+    sys.exit(asyncio.run(main(sys.argv)))
