@@ -50,7 +50,8 @@ basicConfig(handlers=[handler], level=default_log_level)
 
 def init(model_filename: str):
     logger.info("load: %s", model_filename)
-    rr.init("toio_posture_viewer", spawn=True)
+    #rr.init("toio_posture_viewer", spawn=True)
+    rr.connect_tcp("192.168.1.38:9876")
 
     rr.reset_time()
     rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Z_DOWN, static=True)

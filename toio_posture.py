@@ -1,19 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import annotations
-
 import asyncio
-import sys
-from dataclasses import dataclass
 from logging import getLogger
 
 import rerun as rr
+import rerun.blueprint as rrb
 from scipy.spatial.transform import Rotation as R
 from toio.cube import (
-    Button,
-    ButtonInformation,
-    ButtonState,
     PostureAngleDetectionCondition,
     PostureAngleDetectionType,
     PostureAngleQuaternionsData,
@@ -24,21 +18,8 @@ from toio.cube import (
 logger = getLogger(__name__)
 
 
-@dataclass
-class ToioButton:
-    pressed: bool = False
-
-
-async def toio_quaternion():
-    button_state = ToioButton()
-
-    def button_handler(payload: bytearray):
-        button = Button.is_my_data(payload)
-        if isinstance(button, ButtonInformation):
-            nonlocal button_state
-            logger.info("** BUTTON STATE: %s", ButtonState(button.state).name)
-            if button.state == ButtonState.PRESSED and not button_state.pressed:
-                button_state.pressed = True
+async def log_quaternion_posture():
+    count: int = 0
 
     def sensor_handler(payload: bytearray):
         sensor_info = Sensor.is_my_data(payload)
@@ -50,6 +31,8 @@ async def toio_quaternion():
                 "world/toio",
                 rr.InstancePoses3D(quaternions=rr.Quaternion(xyzw=posture.as_quat())),
             )
+            nonlocal count
+            count += 1
 
     async with ToioCoreCube() as cube:
         await cube.api.configuration.set_posture_angle_detection(
@@ -58,17 +41,13 @@ async def toio_quaternion():
             PostureAngleDetectionCondition.Always,
         )
         await cube.api.sensor.register_notification_handler(sensor_handler)
-        await cube.api.button.register_notification_handler(button_handler)
-        while not button_state.pressed:
+        while count < 200:
             await asyncio.sleep(0.1)
-        await cube.api.button.unregister_notification_handler(button_handler)
         await cube.api.sensor.unregister_notification_handler(sensor_handler)
-        logger.info("** DISCONNECTING")
-    logger.info("** DISCONNECTED")
 
 
 def setup():
-    rr.init("toio_posture_viewer", spawn=True)
+    rr.init("toio posture viewer", spawn=True)
 
     rr.reset_time()
     rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Z_DOWN, static=True)
@@ -82,13 +61,14 @@ def setup():
         rr.Arrows3D(origins=origins, vectors=vectors, colors=colors, labels=labels),
     )
     rr.log("world/toio", rr.Asset3D(path="./assets/toiocorecube_v003.gltf"))
+    rr.send_blueprint(rrb.Spatial3DView(origin="/world"))
 
 
 async def main():
     setup()
-    await toio_quaternion()
+    await log_quaternion_posture()
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(main()))
+    exit(asyncio.run(main()))
